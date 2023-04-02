@@ -10,6 +10,8 @@ class Scheduler {
     public Block[] blocks;
     public Task[] tasks;
     public DateTime slot_start;
+    public int valid_st;
+    public int valid_et;
 
 
     public int n_slots;
@@ -18,6 +20,8 @@ class Scheduler {
     public Scheduler(Block[] blocks, Task[] tasks, int valid_st = 8, int valid_et = 22) {
         this.blocks = blocks;
         this.tasks = tasks;
+        this.valid_st = valid_st;
+        this.valid_et = valid_et;
         DateTime cdt = DateTime.Now;
         int final_minute = 0;
         int final_hour = cdt.Hour;
@@ -28,7 +32,7 @@ class Scheduler {
         }
         DateTime slot_start = new DateTime(cdt.Year, cdt.Month, cdt.Day, final_hour, final_minute, 0);
         this.slot_start = slot_start;
-        this.n_slots = 96; // two days
+        this.n_slots = 192; // four days
         this.n_tasks = this.tasks.Length;
     }
 
@@ -38,11 +42,15 @@ class Scheduler {
             if (target >= b.Sdt && target <= b.Edt) {
                 return true;
             }
+            if (target.Hour < this.valid_st || target.Hour > this.valid_et) {
+                // I sleep during this time
+                return true;
+            }
         }
         return false;
     }
 
-    public void Schedule() {
+    public List<Block> Schedule() {
         int[] all_tasks = Enumerable.Range(0, n_tasks).ToArray();
         int[] all_slots = Enumerable.Range(0, n_slots).ToArray();
 
@@ -133,18 +141,51 @@ class Scheduler {
         CpSolver solver = new CpSolver();
         CpSolverStatus status = solver.Solve(model);
         Console.WriteLine($"Solve status: {status}");
+        Block current_block = new Block();
+        current_block.Uuid = "";
+        current_block.TaskId = "";
+        List<Block> new_blocks = new List<Block>();
         if (status == CpSolverStatus.Optimal || status == CpSolverStatus.Feasible) {
             Console.WriteLine("Solution:");
             foreach(int t in all_tasks) {
                 foreach (int s in all_slots) {
                     if (solver.Value(ts_assignments[(t, s)]) == 1L) {
                         Console.WriteLine($"Task {t} scheduled on slot {s}");
+                        if ((string.IsNullOrEmpty(current_block.Uuid) && string.IsNullOrEmpty(current_block.TaskId)) || current_block.TaskId != this.tasks[t].TaskId) {
+                            if (current_block.TaskId != this.tasks[t].TaskId) {
+                                // add to list
+                                if (!string.IsNullOrEmpty(current_block.Uuid)) {
+                                    new_blocks.Add(current_block);
+                                }
+                                // new task
+                                current_block = new Block();
+                            }
+                            // first time
+                            current_block.Uuid = "focus-ai-" + Guid.NewGuid().ToString();
+                            current_block.TaskId = this.tasks[t].TaskId;
+                            current_block.Title = this.tasks[t].Title;
+                            current_block.Sdt = this.slot_start.AddMinutes(s*30);
+                            current_block.Edt = this.slot_start.AddMinutes(s*30 + 30);
+                        } else if (current_block.TaskId == this.tasks[t].TaskId) {
+                            // extend
+                            current_block.Edt = current_block.Edt.AddMinutes(30);
+                        }
+
+                        if (current_block.Edt > this.tasks[t].Deadline) {
+                            throw new Exception("If you proceed with this, you will not be able to finish " + this.tasks[t].Title + " on time. ");
+                        }
                     }
                 }
             }
+            // last block  add to list
+            if (!string.IsNullOrEmpty(current_block.Uuid)) {
+                new_blocks.Add(current_block);
+            }
+        } else {
+            throw new Cloops.Exceptions.InvalidParameterException("Not able to schedule the tasks. Not enough time!");
         }
-        
 
+        return new_blocks;
 
     }
 }

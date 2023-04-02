@@ -14,9 +14,11 @@ public class SchedulingController : ControllerBase
     [Route(base_route + "/reschedule")]
     public JObject Reschedule([FromBody] SchedulingRequest sr) {
         JObject retval = new JObject();
-        Scheduler s = new Scheduler(sr.Blocks.ToArray(), sr.Tasks.ToArray());
-        s.Schedule();
+        Scheduler s = new Scheduler(sr.Blocks.ToArray(), sr.Tasks.ToArray(), sr.valid_st, sr.valid_et);
+        List<Block> new_blocks =  s.Schedule();
         retval["status"] = "success";
+        sr.Blocks.AddRange(new_blocks);
+        retval["blocks"] = new JArray(sr.Blocks.ToArray());
         return retval;
     }
 }

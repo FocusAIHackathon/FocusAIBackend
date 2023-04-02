@@ -12,6 +12,12 @@ public partial class SchedulingRequest
 
     [JsonProperty("tasks")]
     public List<Task> Tasks { get; set; }
+
+    [JsonProperty("valid_st")]
+    public int valid_st { get; set; } = 8;
+
+    [JsonProperty("valid_et")]
+    public int valid_et { get; set; } = 22;
 }
 
 public partial class Block
