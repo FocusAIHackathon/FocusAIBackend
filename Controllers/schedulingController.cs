@@ -17,8 +17,7 @@ public class SchedulingController : ControllerBase
         Scheduler s = new Scheduler(sr.Blocks.ToArray(), sr.Tasks.ToArray(), sr.valid_st, sr.valid_et);
         List<Block> new_blocks =  s.Schedule();
         retval["status"] = "success";
-        sr.Blocks.AddRange(new_blocks);
-        retval["blocks"] = JArray.FromObject(sr.Blocks);
+        retval["new_blocks"] = JArray.FromObject(new_blocks);
         return retval;
     }
 }
