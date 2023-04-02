@@ -15,7 +15,7 @@ class Scheduler {
     public int n_slots;
     public int n_tasks;
 
-    public Scheduler(Block[] blocks, Task[] tasks) {
+    public Scheduler(Block[] blocks, Task[] tasks, int valid_st = 8, int valid_et = 22) {
         this.blocks = blocks;
         this.tasks = tasks;
         DateTime cdt = DateTime.Now;
@@ -27,6 +27,7 @@ class Scheduler {
             final_hour++;
         }
         DateTime slot_start = new DateTime(cdt.Year, cdt.Month, cdt.Day, final_hour, final_minute, 0);
+        this.slot_start = slot_start;
         this.n_slots = 96; // two days
         this.n_tasks = this.tasks.Length;
     }
@@ -34,7 +35,7 @@ class Scheduler {
     public bool isBlocked(int s) {
         DateTime target = this.slot_start.AddMinutes(s*30);
         foreach (Block b in this.blocks) {
-            if (target >= b.Sdt) {
+            if (target >= b.Sdt && target <= b.Edt) {
                 return true;
             }
         }
@@ -59,7 +60,7 @@ class Scheduler {
         }
 
 
-        // constraint: each slot is assigned to only one task
+        // constraint: each slot is assigned to at most one task
         List<ILiteral> literals = new List<ILiteral>();
         foreach (int s in all_slots)
         {
@@ -67,7 +68,7 @@ class Scheduler {
             {
                 literals.Add(ts_assignments[(t, s)]);
             }
-            model.AddExactlyOne(literals);
+            model.AddAtMostOne(literals);
             literals.Clear();
         }
 
@@ -78,6 +79,7 @@ class Scheduler {
             if (isBlocked(s)) {
                 foreach (int t in all_tasks) {
                     forbiddenSlots.Add(ts_assignments[(t,s)]);
+                    Console.WriteLine($"Slot {s} is marked as forbidden");
                 }
             }
         }
@@ -87,10 +89,14 @@ class Scheduler {
         // constraint: there shouldn't be more than 6 consecutive slots scheduled to same task
         int max_consecutive_slots = 6;
         List<IntVar> consecutive_slots_assignment = new List<IntVar>();
-        foreach (int t in all_tasks) {
-            foreach (int s in all_slots) {
-                if (s >= (max_consecutive_slots - 1)) {
-                    for (int x = s-(max_consecutive_slots - 1);x<max_consecutive_slots;x++) {
+        foreach (int t in all_tasks)
+        {
+            foreach (int s in all_slots)
+            {
+                if (s >= (max_consecutive_slots - 1))
+                {
+                    for (int x = s - (max_consecutive_slots - 1); x < max_consecutive_slots; x++)
+                    {
                         consecutive_slots_assignment.Add(ts_assignments[(t, all_slots[x])]);
                     }
                 }
@@ -99,11 +105,24 @@ class Scheduler {
             consecutive_slots_assignment.Clear();
         }
 
-        // optimize to finish all tasks as early as possible
         List<IntVar> slot_assignments = new List<IntVar>();
+        foreach (int t in all_tasks)
+        {
+            foreach (int s in all_slots)
+            {
+                slot_assignments.Add(ts_assignments[(t, s)]);
+            }
+            model.AddLinearConstraint(LinearExpr.Sum(slot_assignments), this.tasks[t].RemainingEffortMins/30, this.tasks[t].RemainingEffortMins / 30);
+            slot_assignments.Clear();
+
+        }
+
+        // optimize to finish all tasks as early as possible
         List<int> slot_assignment_weights = new List<int>();
-        foreach (int t in all_tasks) {
-            foreach(int s in all_slots) {
+        foreach (int t in all_tasks)
+        {
+            foreach (int s in all_slots)
+            {
                 slot_assignments.Add(ts_assignments[(t, s)]);
                 slot_assignment_weights.Add(s);
             }
