@@ -18,7 +18,7 @@ public class SchedulingController : ControllerBase
         List<Block> new_blocks =  s.Schedule();
         retval["status"] = "success";
         sr.Blocks.AddRange(new_blocks);
-        retval["blocks"] = new JArray(sr.Blocks.ToArray());
+        retval["blocks"] = JArray.FromObject(sr.Blocks);
         return retval;
     }
 }

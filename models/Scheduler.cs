@@ -30,7 +30,9 @@ class Scheduler {
         } else if (cdt.Minute > 30) {
             final_hour++;
         }
-        DateTime slot_start = new DateTime(cdt.Year, cdt.Month, cdt.Day, final_hour, final_minute, 0);
+        // DateTime slot_start = new DateTime(cdt.Year, cdt.Month, cdt.Day, final_hour, final_minute, 0);
+        // hard coding start for hackathon
+        DateTime slot_start = new DateTime(2023, 4, 3, 9, 0, 0);
         this.slot_start = slot_start;
         this.n_slots = 192; // four days
         this.n_tasks = this.tasks.Length;
@@ -39,7 +41,7 @@ class Scheduler {
     public bool isBlocked(int s) {
         DateTime target = this.slot_start.AddMinutes(s*30);
         foreach (Block b in this.blocks) {
-            if (target >= b.Sdt && target <= b.Edt) {
+            if (target >= b.Sdt && target < b.Edt) {
                 return true;
             }
             if (target.Hour < this.valid_st || target.Hour > this.valid_et) {
@@ -151,8 +153,19 @@ class Scheduler {
                 foreach (int s in all_slots) {
                     if (solver.Value(ts_assignments[(t, s)]) == 1L) {
                         Console.WriteLine($"Task {t} scheduled on slot {s}");
-                        if ((string.IsNullOrEmpty(current_block.Uuid) && string.IsNullOrEmpty(current_block.TaskId)) || current_block.TaskId != this.tasks[t].TaskId) {
-                            if (current_block.TaskId != this.tasks[t].TaskId) {
+                        DateTime this_sdt = this.slot_start.AddMinutes(s * 30);
+                        DateTime this_edt = this.slot_start.AddMinutes(s * 30 + 30);
+                        if ((string.IsNullOrEmpty(current_block.Uuid) && string.IsNullOrEmpty(current_block.TaskId)) 
+                            || 
+                            (current_block.TaskId != this.tasks[t].TaskId)
+                            ||
+                            (this_sdt > current_block.Edt)
+                            ) {
+                            if (
+                                (current_block.TaskId != this.tasks[t].TaskId && !string.IsNullOrEmpty(current_block.Uuid)) // start of different task
+                                ||
+                                (this_sdt > current_block.Edt && !string.IsNullOrEmpty(current_block.Uuid)) // inbetween diff event
+                                ) {
                                 // add to list
                                 if (!string.IsNullOrEmpty(current_block.Uuid)) {
                                     new_blocks.Add(current_block);
@@ -164,8 +177,8 @@ class Scheduler {
                             current_block.Uuid = "focus-ai-" + Guid.NewGuid().ToString();
                             current_block.TaskId = this.tasks[t].TaskId;
                             current_block.Title = this.tasks[t].Title;
-                            current_block.Sdt = this.slot_start.AddMinutes(s*30);
-                            current_block.Edt = this.slot_start.AddMinutes(s*30 + 30);
+                            current_block.Sdt = this_sdt;
+                            current_block.Edt = this_edt;
                         } else if (current_block.TaskId == this.tasks[t].TaskId) {
                             // extend
                             current_block.Edt = current_block.Edt.AddMinutes(30);
