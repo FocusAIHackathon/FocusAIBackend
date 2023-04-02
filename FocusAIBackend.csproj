@@ -6,7 +6,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugType>full</DebugType>
+    <Optimize>true</Optimize>
+    <GenerateTailCalls>true</GenerateTailCalls>
+  </PropertyGroup>
+
   <ItemGroup>
+    <PackageReference Include="Google.OrTools" Version="9.6.2534" />
     <PackageReference Include="JWT" Version="10.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="7.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.2" />
