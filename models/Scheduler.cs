@@ -53,6 +53,16 @@ class Scheduler {
     }
 
     public List<Block> Schedule() {
+        /*
+        modeled it as following -> 
+            1. split the time in 30 mins intervals called as slots.
+            2. each slot can be assigned to maximum one task. 
+            3. slots that fall between events are forbidden
+            4. sum of assigned slots for a task should be at least equal to remaining time on that task. 
+            5. There shouldn't be more than 6 consecutive slots associated with same task 
+
+            optimize on -> min(sum of slot indexes)
+        */
         int[] all_tasks = Enumerable.Range(0, n_tasks).ToArray();
         int[] all_slots = Enumerable.Range(0, n_slots).ToArray();
 
@@ -115,6 +125,7 @@ class Scheduler {
             consecutive_slots_assignment.Clear();
         }
 
+        // constraint: sum of the time spent on the task should be equal to task total remaining mins
         List<IntVar> slot_assignments = new List<IntVar>();
         foreach (int t in all_tasks)
         {
